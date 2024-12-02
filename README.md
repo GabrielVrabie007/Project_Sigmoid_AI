@@ -8,3 +8,7 @@
 ## Install dependencies
 
 pip install -r requirements.txt
+
+### Link for card fraud detection dataset
+
+https://www.kaggle.com/datasets/kartik2112/fraud-detection
