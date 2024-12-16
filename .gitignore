@@ -1,2 +1,8 @@
 /venv
 /analysis/fraudTest.csv
+/__pycache__
+analysis/__pycache__/encoder_for_text_cols.cpython-311.pyc
+analysis/__pycache__/preprocess_data.cpython-311.pyc
+transactions.db
+trained_models/scaler.pkl
+
