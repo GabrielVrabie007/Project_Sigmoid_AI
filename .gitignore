@@ -1,8 +1,12 @@
 /venv
 /analysis/fraudTest.csv
+analysis/*.pkl
+trained_models/*.pkl
 /__pycache__
 analysis/__pycache__/encoder_for_text_cols.cpython-311.pyc
 analysis/__pycache__/preprocess_data.cpython-311.pyc
 transactions.db
-trained_models/scaler.pkl
-
+install.ipynb
+test.ipynb
+fraud_results.db
+trained_models/fraud_detection_model.pkl
