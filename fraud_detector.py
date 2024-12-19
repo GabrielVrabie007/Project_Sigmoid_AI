@@ -17,7 +17,7 @@ class FraudDetector:
 
         prediction = self.model.predict(scaled_data)
 
-        return prediction[0] == 1
+        return bool(prediction[0] == 1)
 
 
     

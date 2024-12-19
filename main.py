@@ -32,7 +32,7 @@ def process_transaction():
         unprocecessed_transaction = db_handler.get_next_transaction()
         transaction_id = unprocecessed_transaction[0]
         transaction=unprocecessed_transaction[1:]
-        print("-----------",transaction)
+        
         if not transaction:
             raise HTTPException(status_code=404, detail="No more transactions to process")
         

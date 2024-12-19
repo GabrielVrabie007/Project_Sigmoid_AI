@@ -6,7 +6,7 @@ trained_models/*.pkl
 analysis/__pycache__/encoder_for_text_cols.cpython-311.pyc
 analysis/__pycache__/preprocess_data.cpython-311.pyc
 transactions.db
-install.ipynb
+trained_models/scaler.pkl
 test.ipynb
 fraud_results.db
-trained_models/fraud_detection_model.pkl
+install.ipynb

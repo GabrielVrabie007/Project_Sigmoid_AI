@@ -47,7 +47,7 @@ class ShowResult_DB:
         ''', (
             transaction[0],transaction[1], transaction[2], transaction[3], transaction[4],
             transaction[5], transaction[6], transaction[7], transaction[8],
-            transaction[9],transaction[10], is_fraud
+            transaction[9],transaction[10], transaction[10],is_fraud
         ))
         conn.commit()
         conn.close()
