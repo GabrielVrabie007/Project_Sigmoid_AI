@@ -10,3 +10,10 @@ trained_models/scaler.pkl
 test.ipynb
 fraud_results.db
 install.ipynb
+test_1.ipynb
+/first_version_with_database
+D:/Machine_Learning/Project_Sigmoid_AI/app/__pycache__
+app/__pycache__/app.cpython-311.pyc
+app/__pycache__/create_result_tables.cpython-311.pyc
+testing/test_1.ipynb
+app/__pycache__/handler_result_tables.cpython-311.pyc
