@@ -1,16 +1,16 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from handler_result_tables import create_tables
 import sys
-from pathlib import Path
-sys.path.append(r"D:/Machine_Learning/Project_Sigmoid_AI")
-from extract_and_send_to_endpoint import *
-from encoder_for_text_cols import process_transaction_data
-from fraud_detector import FraudDetector
-from handler_result_tables import insert_data_in_tables
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from handler_result_tables import create_tables, insert_data_in_tables  
+from models_file.extract_and_send_to_endpoint import *
+from models_file.encoder_for_text_cols import process_transaction_data
+from models_file.fraud_detector import FraudDetector
 import time
 
+# Încarcă modelul
 @st.cache_resource
 def load_model():
     return joblib.load("trained_models/fraud_detection_model.pkl")
@@ -32,7 +32,6 @@ fraud_detector = FraudDetector(
 global global_uf
 
 def validate_columns():
-    
     required_columns = ['merchant', 'category', 'amt', 'gender', 'lat', 'long', 
                         'city_pop', 'job', 'unix_time', 'merch_lat', 'merch_long']
     
@@ -54,7 +53,6 @@ def home():
         unsafe_allow_html=True
     )
 
-
 def upload_csv():
     uploaded_file = st.file_uploader("Upload a CSV", type='csv')
     if uploaded_file:
@@ -62,64 +60,75 @@ def upload_csv():
             global_uf = pd.read_csv(uploaded_file, sep=None, engine='python')
             global_uf.columns = global_uf.columns.str.strip()
             
-            if st.session_state["page"] == "Fraud Detection":
+            if st.session_state["page"] == "Card Fraud Detection":
                 st.write("Coloanele din fișierul încărcat sunt:", list(global_uf.columns))
                 st.dataframe(global_uf.head())
         except Exception as e:
             st.error(f"Fișierul nu poate fi citit: {str(e)}")
             st.stop()
             return True
-        
-def fraud_detection():
+
+def card_fraud_detection():
     st.markdown(
-        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Fraud Detection</h1>",
+        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Card Fraud Detection</h1>",
         unsafe_allow_html=True
     )
-    loaded_csv=upload_csv()
-    if loaded_csv==True:
-        required_columns=validate_columns()
+    # Se alege funcționalitatea dorită
+    mode = st.radio("Selectează modul de detectare a fraudelor", 
+                    ("Real-Time Fraud Detection", "Fraud Detection din CSV"))
 
-        X_input = global_uf[required_columns]
+    if mode == "Fraud Detection din CSV":
+        st.write("Încarcă fișierul CSV cu tranzacții.")
+        loaded_csv = upload_csv()
+        if loaded_csv:
+            required_columns = validate_columns()
 
-        try:
-            predictions = model.predict(X_input)
-        except Exception as e:
-            st.error(f"A apărut o eroare la efectuarea predicțiilor: {str(e)}")
-            st.stop()
+            X_input = global_uf[required_columns]
 
-        global_uf['Fraud Prediction'] = predictions
-        st.write("Rezultatele predicțiilor:")
-        st.dataframe(global_uf)
+            try:
+                predictions = model.predict(X_input)
+            except Exception as e:
+                st.error(f"A apărut o eroare la efectuarea predicțiilor: {str(e)}")
+                st.stop()
 
-        st.markdown("### Statistici despre predicții")
-        fraud_count = global_uf['Fraud Prediction'].value_counts()
-        st.bar_chart(fraud_count)
+            global_uf['Fraud Prediction'] = predictions
+            st.write("Rezultatele predicțiilor:")
+            st.dataframe(global_uf)
+
+            st.markdown("### Statistici despre predicții")
+            fraud_count = global_uf['Fraud Prediction'].value_counts()
+            st.bar_chart(fraud_count)
+    
+    if mode == "Real-Time Fraud Detection":
+        real_data_time_generator()
 
 def real_data_time_generator():
     st.markdown(
-        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Real Data Time Generator</h1>",
+        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Real-Time Fraud Detection</h1>",
         unsafe_allow_html=True
     )
-    st.write("This page is simulating real time encoming data for detecting fraud transactions")
-    # Exemplu de implementare a funcționalității personalizate
-    data=upload_csv()
+    st.write("Simulăm tranzacții care vin într-un interval de timp și le procesăm pentru a detecta fraudele.")
+    data = upload_csv()
+    
     if st.button("Generate Data") and data:
-        st.write("Waiting for results...")
+        st.write("Așteptăm rezultate...")
 
         while True:
-            unfiltred_data=process_file_and_send_data(data,endpoint="http://localhost:8501")
+            # Tranzacții simulate
+            unfiltred_data = process_file_and_send_data(data, endpoint="http://localhost:8501")
             ID = unfiltred_data.get('', None)
-            required_columns=validate_columns()
+            required_columns = validate_columns()
 
-            encoded_transaction_data = process_transaction_data(data,feature_names,text_cols)
+            encoded_transaction_data = process_transaction_data(data, feature_names, text_cols)
 
             is_fraud = fraud_detector.is_fraudulent(encoded_transaction_data)
 
-            insert_data_in_tables(ID,required_columns[2],is_fraud,required_columns)
-            time.sleep(15)
+            insert_data_in_tables(ID, required_columns[2], is_fraud, required_columns)
+            time.sleep(15)  # Așteptăm 15 secunde între fiecare tranzacție
     else:
-        st.write("Click me!")
+        st.write("Apasă pe butonul pentru a genera tranzacții!")
 
+# Sidebar pentru navigare
 if "page" not in st.session_state:
     st.session_state["page"] = "Home"
 
@@ -139,19 +148,11 @@ with st.sidebar:
     st.write("# Features")
     if st.button("Home"):
         st.session_state["page"] = "Home"
-    if st.button("Fraud Detection"):
-        st.session_state["page"] = "Fraud Detection"
-    if st.button("Real Data Time Generator"):
-        st.session_state["page"] = "Real Data Time Generator"
+    if st.button("Card Fraud Detection"):
+        st.session_state["page"] = "Card Fraud Detection"
 
-# Page Routing
+# Routing pentru pagini
 if st.session_state["page"] == "Home":
     home()
-elif st.session_state["page"] == "Fraud Detection":
-    fraud_detection()
-elif st.session_state["page"] == "Real Data Time Generator":
-    real_data_time_generator()
-    create_tables()
-    
-    
-    
+elif st.session_state["page"] == "Card Fraud Detection":
+    card_fraud_detection()

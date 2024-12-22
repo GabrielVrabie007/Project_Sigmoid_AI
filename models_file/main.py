@@ -85,7 +85,7 @@ def predict_columns(row, feature_names):
 
 
 @app.get("/process-transaction/")
-def process_transaction():
+def process_transaction(): 
     endpoint="http://localhost:8501/process-transaction/"
     try:
         unprocessed_transaction=process_file_and_send_data(global_uf,endpoint)
