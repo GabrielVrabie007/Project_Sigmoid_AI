@@ -32,7 +32,6 @@ To get started with Project Sigmoid AI, follow these steps:
    ```bash
    git clone https://github.com/GabrielVrabie007/Project_Sigmoid_AI.git
    ```
-
 2. **Create a virtual environment**:
 
    For Windows:
@@ -48,7 +47,6 @@ To get started with Project Sigmoid AI, follow these steps:
    python3 -m venv venv
    source venv/bin/activate
    ```
-
 3. **Install dependencies**:
 
    ```bash

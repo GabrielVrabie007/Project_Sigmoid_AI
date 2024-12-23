@@ -1,49 +1,17 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from handler_result_tables import create_tables, insert_data_in_tables  
-from models_file.extract_and_send_to_endpoint import *
-from models_file.encoder_for_text_cols import process_transaction_data
-from models_file.fraud_detector import FraudDetector
-import time
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-# Încarcă modelul
+# Încarcă modelul, LabelEncoder și StandardScaler
 @st.cache_resource
 def load_model():
-    return joblib.load("trained_models/fraud_detection_model.pkl")
+    model = joblib.load("analysis/fraud_detection_model.pkl")
+    label_encoder = joblib.load("C:/Users/iruss/Desktop/Sigmoid_Project/Project_Sigmoid_AI/trained_models/label_encoders.pkl")
+    scaler = joblib.load("C:/Users/iruss/Desktop/Sigmoid_Project/Project_Sigmoid_AI/trained_models/scaler.pkl")
+    return model, label_encoder, scaler
 
-model = load_model()
-
-feature_names = [
-    "merchant", "category", "amt", "gender", "lat", "long", 
-    "city_pop", "job", "unix_time", "merch_lat", "merch_long"
-]
-
-text_cols = ["merchant", "category", "gender", "job"]
-
-fraud_detector = FraudDetector(
-    model_path="trained_models/fraud_detection_model.pkl",
-    scaler_path="trained_models/scaler.pkl"
-)
-
-if "global_uf" not in st.session_state:
-    st.session_state["global_uf"] = None
-
-
-def validate_columns():
-    required_columns = ['merchant', 'category', 'amt', 'gender', 'lat', 'long', 
-                        'city_pop', 'job', 'unix_time', 'merch_lat', 'merch_long']
-    
-    missing_columns = [col for col in required_columns if col not in global_uf.columns]
-    if missing_columns:
-        st.error(f"Fișierul nu conține următoarele coloane necesare pentru predicție: {', '.join(missing_columns)}")
-        st.stop()
-        return False
-    st.success("Toate coloanele necesare pentru predicție sunt prezente.")
-    return True
+model, label_encoder, scaler = load_model()
 
 def home():
     st.markdown(
@@ -55,85 +23,105 @@ def home():
         unsafe_allow_html=True
     )
 
-def upload_csv():
+def fraud_detection():
+    st.markdown(
+        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Fraud Detection</h1>",
+        unsafe_allow_html=True
+    )
     uploaded_file = st.file_uploader("Upload a CSV", type='csv')
-    if uploaded_file:
+    if uploaded_file is not None:
         try:
-            global_uf = pd.read_csv(uploaded_file, sep=None, engine='python')
-            global_uf.columns = global_uf.columns.str.strip()
-            
-            if st.session_state["page"] == "Card Fraud Detection":
-                st.write("Coloanele din fișierul încărcat sunt:", list(global_uf.columns))
-                st.dataframe(global_uf.head())
+            # Încărcarea fișierului, cu delimitator flexibil (tab sau virgulă)
+            uf = pd.read_csv(uploaded_file, sep=None, engine='python')  # Pandas detectează automat separatorul
+            uf.columns = uf.columns.str.strip()  # Curăță spațiile suplimentare din numele coloanelor
+
+            st.write("Coloanele din fișierul încărcat sunt:", list(uf.columns))
+            st.dataframe(uf.head())  # Afișează primele rânduri din fișier
         except Exception as e:
             st.error(f"Fișierul nu poate fi citit: {str(e)}")
+            st.stop()  # Oprește execuția dacă fișierul e invalid
+
+        # Verifică dacă fișierul conține toate coloanele necesare
+        required_columns = ['merchant', 'category', 'amt', 'gender', 'lat', 'long', 
+                            'city_pop', 'job', 'unix_time', 'merch_lat', 'merch_long']
+        missing_columns = [col for col in required_columns if col not in uf.columns]
+
+        if missing_columns:
+            st.error(f"Fișierul nu conține următoarele coloane necesare pentru predicție: {', '.join(missing_columns)}")
             st.stop()
-            return True
 
-def card_fraud_detection():
-    st.markdown(
-        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Card Fraud Detection</h1>",
-        unsafe_allow_html=True
-    )
-    # Se alege funcționalitatea dorită
-    mode = st.radio("Selectează modul de detectare a fraudelor", 
-                    ("Real-Time Fraud Detection", "Fraud Detection din CSV"))
+        st.success("Toate coloanele necesare pentru predicție sunt prezente.")
 
-    if mode == "Fraud Detection din CSV":
-        st.write("Încarcă fișierul CSV cu tranzacții.")
-        loaded_csv = upload_csv()
-        if loaded_csv:
-            required_columns = validate_columns()
+        # Salvează o copie a datelor originale
+        uf_original = uf.copy()
 
-            X_input = global_uf[required_columns]
+        # Aplicarea LabelEncoder pe coloanele de tip object
+        label_columns = ['merchant', 'category', 'gender', 'job']
+        for col in label_columns:
+            if col in uf.select_dtypes(include=['object']).columns:
+                if isinstance(label_encoder, dict) and col in label_encoder:
+                    # Obține LabelEncoder pentru coloana curentă
+                    encoder = label_encoder[col]
+                    # Aplică transformarea folosind encoder-ul specific
+                    uf[col] = encoder.transform(uf[col])
+                else:
+                    st.error(f"Label encoder pentru coloana '{col}' nu este disponibil în dicționarul furnizat.")
+                    st.stop()
+ 
+      
+        uf.drop(columns=['Unnamed: 0','cc_num','city','zip','first', 'last', 'street','dob', 'trans_num','trans_date_trans_time', 'is_fraud'],inplace=True)
 
-            try:
-                predictions = model.predict(X_input)
-            except Exception as e:
-                st.error(f"A apărut o eroare la efectuarea predicțiilor: {str(e)}")
-                st.stop()
+        # Aplicarea StandardScaler pe toate coloanele numerice
+        numeric_columns = uf.select_dtypes(include=['int64', 'float64']).columns
+        uf[numeric_columns] = scaler.transform(uf[numeric_columns])
 
-            global_uf['Fraud Prediction'] = predictions
-            st.write("Rezultatele predicțiilor:")
-            st.dataframe(global_uf)
+        # Pregătește datele pentru predicție
+        X_input = uf[required_columns]
 
-            st.markdown("### Statistici despre predicții")
-            fraud_count = global_uf['Fraud Prediction'].value_counts()
-            st.bar_chart(fraud_count)
-    
-    if mode == "Real-Time Fraud Detection":
-        real_data_time_generator()
+        # Efectuează predicția
+        try:
+            predictions = model.predict(X_input)
+        except Exception as e:
+            st.error(f"A apărut o eroare la efectuarea predicțiilor: {str(e)}")
+            st.stop()
 
-def real_data_time_generator():
-    st.markdown(
-        "<h1 style='font-size:40px; margin:0; width:100%; text-align:center;'>Real-Time Fraud Detection</h1>",
-        unsafe_allow_html=True
-    )
-    st.write("Simulăm tranzacții care vin într-un interval de timp și le procesăm pentru a detecta fraudele.")
-    data = upload_csv()
-    
-    if st.button("Generate Data") and data:
-        st.write("Așteptăm rezultate...")
+        # Adaugă predicțiile în dataframe
+        uf['Fraud Prediction'] = predictions
 
-        while True:
-            # Tranzacții simulate
-            unfiltred_data = process_file_and_send_data(data, endpoint="http://localhost:8501")
-            ID = unfiltred_data.get('', None)
-            required_columns = validate_columns()
+        # Identifică rândurile frauduloase
+        fraud_rows = uf[uf['Fraud Prediction'] == 1]
 
-            encoded_transaction_data = process_transaction_data(data, feature_names, text_cols)
+        # Afișează doar rândurile frauduloase
+        st.markdown("### Rânduri frauduloase detectate:")
+        columns_to_scale= [
+            "merchant", 
+            "category", 
+            "amt", 
+            "gender", 
+            "lat", 
+            "long", 
+            "city_pop", 
+            "job", 
+            "unix_time", 
+            "merch_lat", 
+            "merch_long"
+        ]
 
-            is_fraud = fraud_detector.is_fraudulent(encoded_transaction_data)
+        fraud_rows[columns_to_scale] = scaler.inverse_transform(fraud_rows[columns_to_scale])
 
-            insert_data_in_tables(ID, required_columns[2], is_fraud, required_columns)
-            time.sleep(15)  # Așteptăm 15 secunde între fiecare tranzacție
-    else:
-        st.write("Apasă pe butonul pentru a genera tranzacții!")
 
-# Sidebar pentru navigare
+        st.dataframe(fraud_rows)
+
+        # Afișează statistici despre predicții
+        st.markdown("### Statistici despre predicții")
+        fraud_count = uf['Fraud Prediction'].value_counts()
+        st.bar_chart(fraud_count)
+
+
 if "page" not in st.session_state:
     st.session_state["page"] = "Home"
 
+# Sidebar
 with st.sidebar:
     with st.container():
         col1, col2 = st.columns([1, 2], gap="small")
@@ -146,15 +134,14 @@ with st.sidebar:
             )
 
     st.markdown("<hr style='margin:20px 0; border:1px solid lightgray;'/>", unsafe_allow_html=True)
-
+    
     st.write("# Features")
     if st.button("Home"):
         st.session_state["page"] = "Home"
-    if st.button("Card Fraud Detection"):
-        st.session_state["page"] = "Card Fraud Detection"
+    if st.button("Fraud Detection"):
+        st.session_state["page"] = "Fraud Detection"
 
-# Routing pentru pagini
 if st.session_state["page"] == "Home":
     home()
-elif st.session_state["page"] == "Card Fraud Detection":
-    card_fraud_detection()
+elif st.session_state["page"] == "Fraud Detection":
+    fraud_detection()
