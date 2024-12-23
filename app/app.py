@@ -6,9 +6,9 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 # Încarcă modelul, LabelEncoder și StandardScaler
 @st.cache_resource
 def load_model():
-    model = joblib.load("analysis/fraud_detection_model.pkl")
-    label_encoder = joblib.load("C:/Users/iruss/Desktop/Sigmoid_Project/Project_Sigmoid_AI/trained_models/label_encoders.pkl")
-    scaler = joblib.load("C:/Users/iruss/Desktop/Sigmoid_Project/Project_Sigmoid_AI/trained_models/scaler.pkl")
+    model = joblib.load("trained_models/fraud_detection_model.pkl")
+    label_encoder = joblib.load("trained_models/label_encoders.pkl")
+    scaler = joblib.load("trained_models/scaler.pkl")
     return model, label_encoder, scaler
 
 model, label_encoder, scaler = load_model()
