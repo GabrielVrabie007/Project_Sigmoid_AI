@@ -9,6 +9,9 @@ class FraudDetector:
 
     def is_fraudulent(self, transaction_data):
         
+        if not isinstance(transaction_data, np.array):
+            transaction_data = np.array(transaction_data) 
+
         transaction_data = np.array(transaction_data)
         if transaction_data.ndim == 1:
             transaction_data = transaction_data.reshape(1, -1)

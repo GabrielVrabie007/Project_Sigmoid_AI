@@ -47,6 +47,7 @@
 #     process_transaction()
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import pandas as pd
 import json
@@ -57,9 +58,10 @@ from fraud_detector import FraudDetector
 import joblib
 from encoder_for_text_cols import process_transaction_data
 from extract_and_send_to_endpoint import process_file_and_send_data
-from app.app import global_uf
-from app.handler_result_tables import insert_data_in_tables
-import streamlit as st
+import uvicorn
+#from app.app import global_uf
+#from app.handler_result_tables import insert_data_in_tables
+#import streamlit as st
 
 
 app = FastAPI()
@@ -84,24 +86,22 @@ def predict_columns(row, feature_names):
     return selected_data
 
 
-@app.get("/process-transaction/")
+
+
+
+
+@app.post("/process-transaction/")
 def process_transaction(): 
-    endpoint="http://localhost:8501/process-transaction/"
     try:
-        unprocessed_transaction=process_file_and_send_data(global_uf,endpoint)
+        data = request.json()
 
-        transaction=predict_columns(unprocessed_transaction,feature_names)
+        df = pd.DataFrame(data)
 
-        if not transaction:
-            raise HTTPException(status_code=404, detail="No more transactions to process")
+        row = df.iloc[0].values
 
-        print(f"Processing transaction: {transaction}")
+        is_fraud = fraud_detector.is_fraudulent(row)
 
-        encoded_transaction_data = process_transaction_data(transaction,feature_names,text_cols)
-
-        is_fraud = fraud_detector.is_fraudulent(encoded_transaction_data)
-
-        insert_data_in_tables(unprocessed_transaction[0],predict_columns[2],is_fraud,unprocessed_transaction)
+        return JSONResponse(status_code=200, content={"is_fraud": is_fraud})
 
     except HTTPException as e:
          raise e
@@ -110,3 +110,34 @@ def process_transaction():
          raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
+
+# @app.get("/process-transaction/")
+# def process_transaction(): 
+#     endpoint="http://localhost:8501/process-transaction/"
+#     try:
+#         unprocessed_transaction=process_file_and_send_data(global_uf,endpoint)
+
+#         transaction=predict_columns(unprocessed_transaction,feature_names)
+
+#         if not transaction:
+#             raise HTTPException(status_code=404, detail="No more transactions to process")
+
+#         print(f"Processing transaction: {transaction}")
+
+#         encoded_transaction_data = process_transaction_data(transaction,feature_names,text_cols)
+
+#         is_fraud = fraud_detector.is_fraudulent(encoded_transaction_data)
+
+#         insert_data_in_tables(unprocessed_transaction[0],predict_columns[2],is_fraud,unprocessed_transaction)
+
+#     except HTTPException as e:
+#          raise e
+#     except Exception as e:
+
+#          raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8501, log_level="info")

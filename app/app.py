@@ -29,7 +29,9 @@ fraud_detector = FraudDetector(
     scaler_path="trained_models/scaler.pkl"
 )
 
-global global_uf
+if "global_uf" not in st.session_state:
+    st.session_state["global_uf"] = None
+
 
 def validate_columns():
     required_columns = ['merchant', 'category', 'amt', 'gender', 'lat', 'long', 

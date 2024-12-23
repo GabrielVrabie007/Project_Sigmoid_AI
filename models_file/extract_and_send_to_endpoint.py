@@ -21,12 +21,11 @@ def send_data_to_endpoint(data, endpoint):
     else:
         print(f"Failed to send data. Status code: {response.status_code}")
 
-def process_file_and_send_data(file_path, endpoint):
+def process_file_and_send_data(row, endpoint):
     """
-    Citește rânduri aleatorii din fișierul CSV și le trimite la intervale de 20 secunde.
+    Prezice daca tranzactia curenta este frauduoasa
     """
     while True:
-        row = get_random_row(file_path)
 
         data = {
             "id": row["Unnamed: 0"],
